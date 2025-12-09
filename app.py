@@ -6,10 +6,10 @@ st.set_page_config(page_title="Extração LDR")
 
 st.title("Extração LDR")
 
-uploaded_file = st.file_uploader("📁 Envie seu arquivo", type=["xlsx"])
+uploaded_file = st.file_uploader("📁 Envie seu arquivo", type=["csv"])
 
 if uploaded_file:
-    df = pd.read_excel(uploaded_file)
+    df = pd.read_csv(uploaded_file)
 
     st.subheader("Prévia dos dados recebidos")
     st.dataframe(df.head())
@@ -60,22 +60,14 @@ if uploaded_file:
     st.subheader("Prévia do arquivo limpo")
     st.dataframe(df_limpo.head())
 
-    # Deixar links clicáveis no Excel
-    link_cols = ["Site", "Perfil linkedin contato", "Perfil likedin empresa", "Facebook"]
-    for col in link_cols:
-        if col in df_limpo.columns:
-            df_limpo[col] = df_limpo[col].apply(
-                lambda x: f'=HYPERLINK("{x}", "{x}")' if pd.notnull(x) and str(x).startswith("http") else x
-            )
-
     buffer = io.BytesIO()
-    df_limpo.to_excel(buffer, index=False)
+    df_limpo.to_csv(buffer, index=False, encoding="utf-8")
     buffer.seek(0)
 
     # Botão de download
     st.download_button(
         "⬇️ Baixar arquivo",
         buffer,
-        "leads_limpos.xlsx",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        "leads_limpos.csv",
+        "text/csv"
     )
