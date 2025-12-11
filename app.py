@@ -1,8 +1,11 @@
+from deep_translator import GoogleTranslator
 import streamlit as st
 import pandas as pd
+import numpy as np
 import io
 import re
-from deep_translator import GoogleTranslator
+import json
+import os
 
 st.set_page_config(page_title="Extração LDR")
 
@@ -98,16 +101,45 @@ if uploaded_file:
         lambda x: str(x).replace(".", "") if pd.notnull(x) else x
     )
 
-     # Traduzir automaticamente os valores das colunas
-    df_limpo["Pais do contato"] = df_limpo["Pais do contato"].apply(
-        lambda x: GoogleTranslator(source='auto', target='pt').translate(x) if pd.notnull(x) else x
-    )
-    df_limpo["Segmento"] = df_limpo["Segmento"].apply(
-        lambda x: GoogleTranslator(source='auto', target='pt').translate(x) if pd.notnull(x) else x
-    )
-    df_limpo["Estado do contato"] = df_limpo["Estado do contato"].apply(
-        lambda x: GoogleTranslator(source='auto', target='pt').translate(x) if pd.notnull(x) else x
-    )
+    # Substituir "Brazil" por "Brasil" na coluna "Pais do contato"
+    df_limpo["Pais do contato"] = df_limpo["Pais do contato"].replace("Brazil", "Brasil")
+
+    # Caminho do arquivo JSON para armazenar as traduções
+    json_path = "segment_translations.json"
+
+    # Função para carregar o JSON de traduções
+    def carregar_traducoes(json_path):
+        if os.path.exists(json_path):
+            with open(json_path, "r", encoding="utf-8") as file:
+                return json.load(file)
+        return {}
+
+    # Função para salvar as traduções no JSON
+    def salvar_traducoes(json_path, traducoes):
+        with open(json_path, "w", encoding="utf-8") as file:
+            json.dump(traducoes, file, ensure_ascii=False, indent=4)
+
+    # Função para traduzir segmentos e atualizar o JSON
+    def traduzir_segmentos(df, coluna, json_path):
+        # Carregar traduções existentes
+        traducoes = carregar_traducoes(json_path)
+
+        # Obter valores únicos que ainda não foram traduzidos
+        valores_unicos = df[coluna].dropna().unique()
+        novos_valores = [valor for valor in valores_unicos if valor not in traducoes]
+
+        # Traduzir novos valores e atualizar o dicionário
+        for valor in novos_valores:
+            traducoes[valor] = GoogleTranslator(source='auto', target='pt').translate(valor)
+
+        # Salvar as traduções atualizadas no JSON
+        salvar_traducoes(json_path, traducoes)
+
+        # Mapear as traduções de volta para a coluna
+        df[coluna] = df[coluna].map(traducoes)
+
+    # Traduzir a coluna "Segmento" usando o JSON como cache
+    traduzir_segmentos(df_limpo, "Segmento", json_path)
 
     st.subheader("Prévia do arquivo limpo")
     st.dataframe(df_limpo.head())
